@@ -1,0 +1,309 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Kin Movie</title>
+
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js"></script>
+  <style>
+    [x-cloak] { display: none !important; }
+  </style>
+</head>
+
+<body class="bg-slate-950 text-white min-h-screen"
+      x-data="movieApp()" x-init="loadMovies()">
+
+  <header class="p-6 flex justify-between items-center">
+    <h1 class="text-3xl font-bold text-red-500">KIN MOVIE</h1>
+    <span class="text-gray-400">Discover Movies</span>
+  </header>
+
+  <main class="px-6 pb-10">
+    <h2 class="text-2xl font-bold mb-4" x-text="pageTitle"></h2>
+
+    <input
+      type="text"
+      placeholder="Cari film..."
+      x-model="search"
+      @input.debounce.500ms="searchMovies()"
+      class="w-full p-3 mb-4 rounded-lg bg-slate-800 border border-slate-700 outline-none"
+    >
+
+    <!-- Filter tahun -->
+    <div class="mb-4">
+      <select x-model="year" @change="loadMovies()"
+        class="p-3 rounded-lg bg-slate-800 border border-slate-700">
+        <option value="">Semua Tahun</option>
+        <template x-for="y in years" :key="y">
+          <option :value="String(y)" x-text="y"></option>
+        </template>
+      </select>
+    </div>
+
+    <!-- Kategori film -->
+    <div class="flex flex-wrap gap-3 mb-6">
+      <button @click="category='popular'; loadMovies()"
+        :class="category==='popular' ? 'bg-red-500' : 'bg-slate-800'"
+        class="px-5 py-3 rounded-full">Populer</button>
+
+      <button @click="category='now_playing'; loadMovies()"
+        :class="category==='now_playing' ? 'bg-red-500' : 'bg-slate-800'"
+        class="px-5 py-3 rounded-full">Sedang Tayang</button>
+
+      <button @click="category='top_rated'; loadMovies()"
+        :class="category==='top_rated' ? 'bg-red-500' : 'bg-slate-800'"
+        class="px-5 py-3 rounded-full">Rating Tertinggi</button>
+    </div>
+
+    <!-- Loading indicator -->
+    <div x-show="loading" class="flex items-center gap-3 mb-5 text-gray-300">
+      <div class="w-5 h-5 border-2 border-red-500 border-t-transparent rounded-full animate-spin"></div>
+      <span>Memuat film...</span>
+    </div>
+
+    <p x-show="error" x-text="error" class="text-red-400 mb-4"></p>
+
+    <!-- Daftar film -->
+    <div class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-5">
+      <template x-for="movie in movies" :key="movie.id">
+        <button @click="openDetail(movie.id)"
+          class="text-left rounded-xl overflow-hidden bg-slate-900 hover:scale-105 transition">
+          <img
+            :src="movie.poster_path
+              ? 'https://image.tmdb.org/t/p/w500' + movie.poster_path
+              : 'https://placehold.co/500x750?text=No+Poster'"
+            :alt="movie.title"
+            class="w-full aspect-[2/3] object-cover"
+          >
+          <div class="p-3">
+            <h3 x-text="movie.title" class="font-bold"></h3>
+            <p class="text-yellow-400 mt-2"
+               x-text="'⭐ ' + (movie.vote_average?.toFixed(1) ?? 'N/A')"></p>
+            <p class="text-gray-400 text-sm"
+               x-text="movie.release_date || 'Tanggal tidak tersedia'"></p>
+          </div>
+        </button>
+      </template>
+    </div>
+
+    <p x-show="!loading && !error && movies.length===0"
+      class="text-gray-400 text-center py-10">
+      Film tidak ditemukan.
+    </p>
+  </main>
+
+  <!-- Modal detail film -->
+  <div x-show="selectedMovie" x-cloak
+    @keydown.escape.window="selectedMovie=null"
+    @click.self="selectedMovie=null"
+    class="fixed inset-0 z-50 bg-black/80 p-4 flex items-center justify-center overflow-y-auto">
+
+    <div class="bg-slate-900 rounded-xl p-5 max-w-2xl w-full relative my-auto"
+      x-show="selectedMovie">
+
+      <button @click="selectedMovie=null"
+        class="absolute right-4 top-3 text-2xl" aria-label="Tutup">✕</button>
+
+      <template x-if="selectedMovie">
+        <div class="sm:flex gap-5 mt-6">
+          <img
+            :src="selectedMovie.poster_path
+              ? 'https://image.tmdb.org/t/p/w500' + selectedMovie.poster_path
+              : 'https://placehold.co/500x750?text=No+Poster'"
+            class="w-40 h-fit rounded-lg mb-4 sm:mb-0"
+            :alt="selectedMovie.title">
+
+          <div class="flex-1">
+            <h2 x-text="selectedMovie.title"
+              class="text-2xl font-bold mb-2"></h2>
+
+            <p class="text-yellow-400 mb-2"
+              x-text="'⭐ ' + (selectedMovie.vote_average?.toFixed(1) ?? 'N/A')"></p>
+
+            <p class="text-gray-400 mb-2"
+              x-text="'Tahun rilis: ' + (selectedMovie.release_date || '-')"></p>
+
+            <p class="text-gray-400 mb-2"
+              x-text="'Durasi: ' + (selectedMovie.runtime ? selectedMovie.runtime + ' menit' : 'Tidak tersedia')"></p>
+
+            <p class="text-gray-300 mb-4"
+              x-text="'Genre: ' + (selectedMovie.genres?.map(g => g.name).join(', ') || 'Tidak tersedia')"></p>
+
+            <h3 class="font-bold mb-2">Sinopsis</h3>
+            <p class="leading-relaxed text-gray-300 mb-5"
+              x-text="selectedMovie.overview || 'Sinopsis belum tersedia.'"></p>
+
+            <button @click="openTrailer()"
+              class="bg-red-500 hover:bg-red-600 px-5 py-3 rounded-lg">
+              ▶ Trailer
+            </button>
+
+            <p x-show="trailerMessage" x-text="trailerMessage"
+              class="text-sm text-gray-400 mt-3"></p>
+          </div>
+        </div>
+      </template>
+    </div>
+  </div>
+
+  <script>
+    function movieApp() {
+      return {
+        apiKey: 'db9df0cc2bdbc23a3f3edc123e936607',
+        movies: [],
+        search: '',
+        year: '',
+        category: 'popular',
+        loading: false,
+        error: '',
+        selectedMovie: null,
+        trailerMessage: '',
+        years: Array.from(
+          { length: 2026 - 1980 + 1 },
+          (_, i) => 2026 - i
+        ),
+
+        get pageTitle() {
+          if (this.search.trim()) return 'Hasil Pencarian';
+          if (this.category === 'now_playing') return 'Sedang Tayang';
+          if (this.category === 'top_rated') return 'Rating Tertinggi';
+          return 'Popular Movies';
+        },
+
+        async request(url) {
+          const response = await fetch(url);
+
+          if (!response.ok) {
+            if (response.status === 401) {
+              throw new Error('API key salah atau belum aktif.');
+            }
+            throw new Error('Gagal mengambil data. Periksa koneksi dan API key.');
+          }
+
+          return response.json();
+        },
+
+        async loadMovies() {
+          this.loading = true;
+          this.error = '';
+
+          try {
+            let url;
+
+            if (this.year) {
+              const params = new URLSearchParams({
+                api_key: this.apiKey,
+                language: 'id-ID',
+                page: '1',
+                primary_release_year: this.year,
+                sort_by: this.category === 'top_rated'
+                  ? 'vote_average.desc'
+                  : 'popularity.desc',
+                'vote_count.gte': this.category === 'top_rated' ? '100' : '0'
+              });
+
+              url = 'https://api.themoviedb.org/3/discover/movie?' + params;
+            } else {
+              url = 'https://api.themoviedb.org/3/movie/' +
+                this.category + '?api_key=' + this.apiKey +
+                '&language=id-ID&page=1';
+            }
+
+            const data = await this.request(url);
+            this.movies = (data.results || []).slice(0, 20);
+          } catch (e) {
+            this.error = e.message;
+            this.movies = [];
+          } finally {
+            this.loading = false;
+          }
+        },
+
+        async searchMovies() {
+          if (!this.search.trim()) {
+            await this.loadMovies();
+            return;
+          }
+
+          this.loading = true;
+          this.error = '';
+
+          try {
+            const params = new URLSearchParams({
+              api_key: this.apiKey,
+              language: 'id-ID',
+              query: this.search,
+              page: '1'
+            });
+
+            if (this.year) params.set('primary_release_year', this.year);
+
+            const data = await this.request(
+              'https://api.themoviedb.org/3/search/movie?' + params
+            );
+
+            this.movies = (data.results || []).slice(0, 20);
+          } catch (e) {
+            this.error = e.message;
+            this.movies = [];
+          } finally {
+            this.loading = false;
+          }
+        },
+
+        async openDetail(id) {
+          this.loading = true;
+          this.error = '';
+          this.trailerMessage = '';
+
+          try {
+            this.selectedMovie = await this.request(
+              'https://api.themoviedb.org/3/movie/' + id +
+              '?api_key=' + this.apiKey + '&language=id-ID'
+            );
+          } catch (e) {
+            this.error = e.message;
+          } finally {
+            this.loading = false;
+          }
+        },
+
+        async openTrailer() {
+          if (!this.selectedMovie) return;
+
+          this.trailerMessage = 'Mencari trailer...';
+
+          try {
+            const data = await this.request(
+              'https://api.themoviedb.org/3/movie/' +
+              this.selectedMovie.id +
+              '/videos?api_key=' + this.apiKey + '&language=en-US'
+            );
+
+            const trailer = (data.results || []).find(
+              video => video.site === 'YouTube' &&
+              (video.type === 'Trailer' || video.type === 'Teaser') &&
+              video.key
+            );
+
+            if (trailer) {
+              window.open(
+                'https://www.youtube.com/watch?v=' + trailer.key,
+                '_blank',
+                'noopener,noreferrer'
+              );
+              this.trailerMessage = '';
+            } else {
+              this.trailerMessage = 'Trailer tidak tersedia untuk film ini.';
+            }
+          } catch (e) {
+            this.trailerMessage = 'Gagal mengambil trailer. Coba lagi.';
+          }
+        }
+      };
+    }
+  </script>
+</body>
+</html>

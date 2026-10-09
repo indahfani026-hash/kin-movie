@@ -1,0 +1,42 @@
+[x-cloak] {
+  display: none !important;
+}
+
+html {
+  scroll-behavior: smooth;
+}
+
+body {
+  font-family: Arial, Helvetica, sans-serif;
+}
+
+button,
+select,
+input {
+  transition: all 0.2s ease;
+}
+
+button:focus-visible,
+select:focus-visible,
+input:focus-visible {
+  outline: 2px solid #ef4444;
+  outline-offset: 3px;
+}
+
+input::placeholder {
+  color: #94a3b8;
+}
+
+@media (max-width: 640px) {
+  header {
+    gap: 12px;
+  }
+
+  header h1 {
+    font-size: 1.5rem;
+  }
+
+  header span {
+    font-size: 0.75rem;
+  }
+}
